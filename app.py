@@ -25,60 +25,55 @@ def load_data():
 data = load_data()
 
 if not data.empty:
-    st.title("📊 Reporte de Ingeniería: Datos ZNI")
-    st.markdown("---")
-
-    # --- FILTROS LATERALES PARA NO OCUPAR ESPACIO ---
+    st.title("📊 Reporte Técnico ZNI")
+    
+    # Filtro en la barra lateral
     with st.sidebar:
-        st.header("Configuración")
         municipios = sorted(data['MUNICIPIO'].unique().tolist())
         seleccion = st.multiselect("Municipios:", municipios, default=[municipios[0]])
     
     df_filtrado = data[data['MUNICIPIO'].isin(seleccion)]
 
-    # --- FILA 1: TENDENCIA (OCUPA TODO EL ANCHO) ---
-    st.subheader("📈 Evolución Temporal de Energía Activa")
-    fig_line = px.line(df_filtrado, x='YEAR', y='ENERGÍA ACTIVA', color='MUNICIPIO', 
-                       markers=True, template="plotly_white", height=400)
-    fig_line.update_layout(margin=dict(l=20, r=20, t=20, b=20))
-    st.plotly_chart(fig_line, use_container_width=True)
+    # --- HISTOGRAMA ESTILO COLAB ---
+    st.subheader("📊 Distribución de Energía Activa")
+    
+    # Creamos la figura con Matplotlib para que sea idéntica a Colab
+    fig_hist, ax_hist = plt.subplots(figsize=(10, 4))
+    sns.histplot(df_filtrado['ENERGÍA ACTIVA'], bins=20, kde=True, color='#2E86C1', ax=ax_hist)
+    ax_hist.set_title('Distribución de Frecuencias (Energía Activa)', fontsize=12)
+    ax_hist.set_xlabel('Energía (kWh)')
+    ax_hist.set_ylabel('Frecuencia')
+    ax_hist.grid(axis='y', alpha=0.3)
+    
+    # Lo mostramos en Streamlit usando pyplot
+    st.pyplot(fig_hist)
 
-    st.markdown("---")
+    st.divider()
 
-    # --- FILA 2: DISPERSIÓN E HISTOGRAMA (DOS COLUMNAS) ---
-    col1, col2 = st.columns(2)
+    # --- MATRIZ DE CORRELACIÓN ESTILO COLAB ---
+    col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.subheader("🎯 Dispersión: Potencia vs Energía")
-        if 'POTENCIA MÁXIMA' in df_filtrado.columns:
-            fig_scatter = px.scatter(df_filtrado, x='POTENCIA MÁXIMA', y='ENERGÍA ACTIVA', 
-                                   color='MUNICIPIO', template="presentation", height=350)
-            st.plotly_chart(fig_scatter, use_container_width=True)
-        else:
-            st.info("Columna 'POTENCIA MÁXIMA' no disponible.")
+        st.subheader("🌡️ Matriz de Correlación")
+        df_corr = df_filtrado.select_dtypes(include=['float64', 'int64']).corr()
+        
+        fig_corr, ax_corr = plt.subplots(figsize=(8, 6))
+        sns.heatmap(df_corr, annot=True, cmap='coolwarm', fmt=".2f", ax=ax_corr, square=True)
+        ax_corr.set_title('Correlación de Pearson')
+        st.pyplot(fig_corr)
 
     with col2:
-        st.subheader("📊 Histograma de Frecuencias")
-        fig_hist = px.histogram(df_filtrado, x='ENERGÍA ACTIVA', nbins=15, 
-                               color_discrete_sequence=['#2E86C1'], template="simple_white", height=350)
-        st.plotly_chart(fig_hist, use_container_width=True)
+        st.subheader("📝 Resumen Estadístico")
+        # Esto le da un toque muy pro de ingeniería
+        st.dataframe(df_filtrado[['ENERGÍA ACTIVA', 'POTENCIA MÁXIMA']].describe())
 
-    st.markdown("---")
-
-    # --- FILA 3: MATRIZ DE CORRELACIÓN (CENTREADA Y ESTILIZADA) ---
-    st.subheader("🌡️ Matriz de Correlación de Variables")
-    df_corr = df_filtrado.select_dtypes(include=['float64', 'int64']).corr()
-    
-    if not df_corr.empty:
-        fig_corr = px.imshow(df_corr, text_auto=True, aspect="auto",
-                            color_continuous_scale='RdBu_r', 
-                            labels=dict(color="Correlación"))
-        fig_corr.update_layout(height=400)
-        st.plotly_chart(fig_corr, use_container_width=True)
-    
-    # --- TABLA DE DATOS FINAL ---
-    with st.expander("📝 Ver registros procesados"):
-        st.dataframe(df_filtrado, use_container_width=True)
+    # --- GRÁFICO DE LÍNEAS (Mantenemos Plotly por la interactividad del tiempo) ---
+    st.divider()
+    st.subheader("📈 Tendencia Temporal")
+    import plotly.express as px
+    fig_line = px.line(df_filtrado, x='YEAR', y='ENERGÍA ACTIVA', color='MUNICIPIO', 
+                       markers=True, template="simple_white")
+    st.plotly_chart(fig_line, use_container_width=True)
 
 else:
     st.error("No se pudieron cargar los datos.")
