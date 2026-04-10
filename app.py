@@ -8,7 +8,7 @@ st.title("Diagnóstico y Proyección Energética ZNI 2028")
 st.markdown("Análisis interactivo para la Transición Energética Justa en Colombia")
 
 # 1. Carga de datos (usando tu CSV procesado)
-df = pd.read_csv('datos_finales_zni.csv')
+df = pd.read_csv('https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/datos_finales_zni.csv')
 
 # 2. Barra Lateral de Filtros
 municipio_search = st.sidebar.multiselect("Seleccionar Municipios:", options=df['MUNICIPIO'].unique(), default=['SAN ANDRES', 'LETICIA'])
