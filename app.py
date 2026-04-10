@@ -1,89 +1,84 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Análisis Energético ZNI", layout="wide")
+st.set_page_config(page_title="Análisis ZNI - Ingeniería", layout="wide")
 
 URL = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/datos_dashboard%20(1).csv"
 
 @st.cache_data(ttl=60)
 def load_data():
-    try:
-        df = pd.read_csv(URL, on_bad_lines='skip')
-        df.columns = [str(c).strip().upper() for c in df.columns]
-        
-        # Identificar columnas clave
-        for col in df.columns:
-            if 'AÑO' in col or 'ANIO' in col:
-                df = df.rename(columns={col: 'YEAR'})
-                break
-        
-        # Conversión numérica limpia
-        cols_to_fix = ['YEAR', 'ENERGÍA ACTIVA', 'POTENCIA MÁXIMA']
-        for col in cols_to_fix:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        df['MUNICIPIO'] = df['MUNICIPIO'].astype(str).str.upper().str.strip()
-        return df.dropna(subset=['YEAR', 'ENERGÍA ACTIVA', 'MUNICIPIO'])
-    except Exception as e:
-        st.error(f"Error: {e}")
-        return pd.DataFrame()
+    df = pd.read_csv(URL, on_bad_lines='skip')
+    df.columns = [str(c).strip().upper() for c in df.columns]
+    for col in df.columns:
+        if 'AÑO' in col or 'ANIO' in col:
+            df = df.rename(columns={col: 'YEAR'})
+            break
+    cols_num = ['YEAR', 'ENERGÍA ACTIVA', 'POTENCIA MÁXIMA']
+    for col in cols_num:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    df['MUNICIPIO'] = df['MUNICIPIO'].astype(str).str.upper().str.strip()
+    return df.dropna(subset=['YEAR', 'ENERGÍA ACTIVA', 'MUNICIPIO'])
 
 data = load_data()
 
 if not data.empty:
-    st.title("⚡ Dashboard de Ingeniería ZNI")
+    st.title("📊 Reporte de Ingeniería: Datos ZNI")
+    st.markdown("---")
+
+    # --- FILTROS LATERALES PARA NO OCUPAR ESPACIO ---
+    with st.sidebar:
+        st.header("Configuración")
+        municipios = sorted(data['MUNICIPIO'].unique().tolist())
+        seleccion = st.multiselect("Municipios:", municipios, default=[municipios[0]])
     
-    # --- FILTROS ---
-    municipios = sorted(data['MUNICIPIO'].unique().tolist())
-    seleccion = st.multiselect("Seleccionar Municipios para el análisis:", municipios, default=[municipios[0]])
     df_filtrado = data[data['MUNICIPIO'].isin(seleccion)]
 
-    # --- FILA 1: TENDENCIA Y DISPERSIÓN ---
+    # --- FILA 1: TENDENCIA (OCUPA TODO EL ANCHO) ---
+    st.subheader("📈 Evolución Temporal de Energía Activa")
+    fig_line = px.line(df_filtrado, x='YEAR', y='ENERGÍA ACTIVA', color='MUNICIPIO', 
+                       markers=True, template="plotly_white", height=400)
+    fig_line.update_layout(margin=dict(l=20, r=20, t=20, b=20))
+    st.plotly_chart(fig_line, use_container_width=True)
+
+    st.markdown("---")
+
+    # --- FILA 2: DISPERSIÓN E HISTOGRAMA (DOS COLUMNAS) ---
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("📈 Tendencia Histórica")
-        fig_line = px.line(df_filtrado, x='YEAR', y='ENERGÍA ACTIVA', color='MUNICIPIO', markers=True)
-        st.plotly_chart(fig_line, use_container_width=True)
-
-    with col2:
-        st.subheader("🎯 Gráfico de Dispersión")
-        # Relación entre Potencia y Energía
+        st.subheader("🎯 Dispersión: Potencia vs Energía")
         if 'POTENCIA MÁXIMA' in df_filtrado.columns:
             fig_scatter = px.scatter(df_filtrado, x='POTENCIA MÁXIMA', y='ENERGÍA ACTIVA', 
-                                   color='MUNICIPIO', hover_name='YEAR',
-                                   title="Potencia Máxima vs Energía Activa")
+                                   color='MUNICIPIO', template="presentation", height=350)
             st.plotly_chart(fig_scatter, use_container_width=True)
         else:
-            st.info("No se encontró la columna de Potencia para la dispersión.")
+            st.info("Columna 'POTENCIA MÁXIMA' no disponible.")
 
-    st.divider()
-
-    # --- FILA 2: HISTOGRAMA Y CORRELACIÓN ---
-    col3, col4 = st.columns(2)
-
-    with col3:
-        st.subheader("📊 Histograma de Consumo")
-        fig_hist = px.histogram(df_filtrado, x='ENERGÍA ACTIVA', nbins=20, 
-                               title="Distribución de Energía Activa (kWh)",
-                               color_discrete_sequence=['#636EFA'])
+    with col2:
+        st.subheader("📊 Histograma de Frecuencias")
+        fig_hist = px.histogram(df_filtrado, x='ENERGÍA ACTIVA', nbins=15, 
+                               color_discrete_sequence=['#2E86C1'], template="simple_white", height=350)
         st.plotly_chart(fig_hist, use_container_width=True)
 
-    with col4:
-        st.subheader("🌡️ Matriz de Correlación")
-        # Seleccionamos solo columnas numéricas para la matriz
-        df_corr = df_filtrado.select_dtypes(include=['float64', 'int64'])
-        if not df_corr.empty and len(df_corr.columns) > 1:
-            corr = df_corr.corr()
-            fig_corr, ax = plt.subplots()
-            sns.heatmap(corr, annot=True, cmap='RdYlGn', ax=ax, center=0)
-            st.pyplot(fig_corr)
-        else:
-            st.info("Se necesitan más variables numéricas para la correlación.")
+    st.markdown("---")
+
+    # --- FILA 3: MATRIZ DE CORRELACIÓN (CENTREADA Y ESTILIZADA) ---
+    st.subheader("🌡️ Matriz de Correlación de Variables")
+    df_corr = df_filtrado.select_dtypes(include=['float64', 'int64']).corr()
+    
+    if not df_corr.empty:
+        fig_corr = px.imshow(df_corr, text_auto=True, aspect="auto",
+                            color_continuous_scale='RdBu_r', 
+                            labels=dict(color="Correlación"))
+        fig_corr.update_layout(height=400)
+        st.plotly_chart(fig_corr, use_container_width=True)
+    
+    # --- TABLA DE DATOS FINAL ---
+    with st.expander("📝 Ver registros procesados"):
+        st.dataframe(df_filtrado, use_container_width=True)
 
 else:
-    st.warning("No se encontraron datos. Verifica el archivo en GitHub.")
+    st.error("No se pudieron cargar los datos.")
