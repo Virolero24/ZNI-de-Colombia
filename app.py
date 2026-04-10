@@ -2,94 +2,89 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Dashboard ZNI - Ingeniería", layout="wide")
+st.set_page_config(page_title="ZNI Dashboard - Ingeniería", layout="wide")
 
-# URL del archivo (Asegúrate de que el nombre coincida exactamente en GitHub)
-URL = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/datos_processed.csv"
+# URL con el nombre exacto que me indicaste
+URL = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/main/datos_dashboard%20(1).csv"
 
 @st.cache_data(ttl=5)
-def load_and_clean():
-    # Leemos el CSV
+def load_data():
+    # 1. Carga inicial
     df = pd.read_csv(URL)
     
-    # 1. Limpieza de columnas
+    # 2. Limpieza de nombres de columnas
     df.columns = [str(c).strip().upper() for c in df.columns]
+    
+    # Manejar el nombre "AÑO SERVICIO"
     if 'AÑO SERVICIO' in df.columns:
         df = df.rename(columns={'AÑO SERVICIO': 'AÑO'})
+    elif 'AÑO' not in df.columns:
+        # Si no la encuentra, busca una columna que contenga "AÑO"
+        for col in df.columns:
+            if 'AÑO' in col:
+                df = df.rename(columns={col: 'AÑO'})
+                break
+
+    # 3. CONVERSIÓN FORZADA (Soluciona el error 'arg must be a list')
+    # Convertimos los valores a una lista plana de Python antes de pasarlos a numérico
+    df['AÑO'] = pd.to_numeric(list(df['AÑO']), errors='coerce')
+    df['ENERGÍA ACTIVA'] = pd.to_numeric(list(df['ENERGÍA ACTIVA']), errors='coerce')
     
-    # 2. LIMPIEZA MANUAL (Evita el error de 'arg must be a list')
-    # En lugar de pd.to_numeric, usamos una función lambda que es más tolerante
-    def forzar_numero(valor):
-        try:
-            return float(valor)
-        except:
-            return None
-
-    df['AÑO SERVICIO'] = df['AÑO SERVICIO'].apply(forzar_numero)
-    df['ENERGÍA ACTIVA'] = df['ENERGÍA ACTIVA'].apply(forzar_numero)
-    df['POTENCIA MÁXIMA'] = df['POTENCIA MÁXIMA'].apply(forzar_numero)
-
-    # 3. Limpieza de Municipios
+    # 4. Limpieza de Municipios (Quitar tildes y espacios)
     df['MUNICIPIO'] = df['MUNICIPIO'].astype(str).str.upper().str.strip()
-    replacements = {'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U'}
-    for k, v in replacements.items():
+    remplazos = {'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U'}
+    for k, v in remplazos.items():
         df['MUNICIPIO'] = df['MUNICIPIO'].str.replace(k, v)
 
-    # 4. Eliminar filas con errores de conversión
-    df = df.dropna(subset=['AÑO SERVICIO', 'ENERGÍA ACTIVA'])
+    # 5. Quitar datos incompletos
+    df = df.dropna(subset=['AÑO', 'ENERGÍA ACTIVA', 'MUNICIPIO'])
     
-    # 5. Agrupación final
-    df = df.groupby(['MUNICIPIO', 'AÑO SERVICIO'], as_index=False).agg({
-        'ENERGÍA ACTIVA': 'sum',
-        'POTENCIA MÁXIMA': 'max'
-    })
+    # 6. Agrupación para evitar líneas duplicadas
+    df = df.groupby(['MUNICIPIO', 'AÑO'], as_index=False)['ENERGÍA ACTIVA'].sum()
     
-    return df.sort_values(['MUNICIPIO', 'AÑO SERVICIO'])
+    return df.sort_values(['MUNICIPIO', 'AÑO'])
 
 try:
-    df = load_and_clean()
+    data = load_data()
     
     st.title("⚡ Transición Energética Justa - ZNI")
     
-    # KPIs
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Municipios", len(df['MUNICIPIO'].unique()))
-    m2.metric("Impacto Estratégico", "70.18%")
-    m3.metric("Año Máximo", int(df['AÑO SERVICIO'].max()) if not df.empty else 0)
+    # Métricas clave
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Municipios", len(data['MUNICIPIO'].unique()))
+    c2.metric("Impacto Estratégico", "70.18%")
+    c3.metric("Alcance Máximo", int(data['AÑO'].max()))
 
     st.divider()
 
-    # 1. Gráfico de Dispersión
-    st.subheader("📊 Distribución de Demanda")
-    lista_m = sorted(df['MUNICIPIO'].unique().tolist())
-    sel_scatter = st.multiselect("Filtrar municipios:", lista_m, default=lista_m, key="s_final")
-    
-    if sel_scatter:
-        df_s = df[df['MUNICIPIO'].isin(sel_scatter)]
-        fig1 = px.scatter(df_s, x='POTENCIA MÁXIMA', y='ENERGÍA ACTIVA', color='MUNICIPIO', 
-                         hover_name='MUNICIPIO', template="plotly_white")
-        st.plotly_chart(fig1, use_container_width=True)
+    # Selector de Municipios
+    municipios = sorted(data['MUNICIPIO'].unique().tolist())
+    # Pre-seleccionar San Andres si existe, sino el primero
+    default_sel = [m for m in ['SAN ANDRES'] if m in municipios] or [municipios[0]]
+    seleccion = st.multiselect("Seleccionar Municipio:", municipios, default=default_sel)
 
-    # 2. Gráfico de Líneas
-    st.divider()
-    st.subheader("📈 Histórico y Proyección IA (2025-2028)")
-    default_m = [m for m in ['SAN ANDRES'] if m in lista_m] or [lista_m[0]]
-    sel_line = st.multiselect("Seleccionar para tendencia:", lista_m, default=default_m, key="l_final")
-    
-    if sel_line:
-        df_l = df[df['MUNICIPIO'].isin(sel_line)]
-        fig2 = px.line(df_l, x='AÑO SERVICIO', y='ENERGÍA ACTIVA', color='MUNICIPIO', markers=True)
+    if seleccion:
+        df_filtrado = data[data['MUNICIPIO'].isin(seleccion)]
         
-        # Sombreado de predicción
-        if df['AÑO SERVICIO'].max() >= 2025:
-            fig2.add_vrect(x0=2024.5, x1=2028.5, fillcolor="rgba(46, 204, 113, 0.2)", 
-                           layer="below", line_width=0, annotation_text="PREDICCIÓN IA")
+        # Gráfico de Líneas
+        fig = px.line(df_filtrado, x='AÑO', y='ENERGÍA ACTIVA', color='MUNICIPIO', 
+                     markers=True, template="plotly_white")
         
-        st.plotly_chart(fig2, use_container_width=True)
+        # Sombrear la zona de proyecciones
+        if data['AÑO'].max() >= 2025:
+            fig.add_vrect(x0=2024.5, x1=2028.5, fillcolor="rgba(46, 204, 113, 0.2)", 
+                         layer="below", line_width=0, annotation_text="PREDICCIÓN IA")
+            
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Gráfico de Barras para comparar el total proyectado
+        st.subheader("Comparativa de Energía por Municipio")
+        fig_bar = px.bar(df_filtrado, x='AÑO', y='ENERGÍA ACTIVA', color='MUNICIPIO', barmode='group')
+        st.plotly_chart(fig_bar, use_container_width=True)
 
 except Exception as e:
-    st.error("Error crítico en el Dashboard")
-    st.write("Detalle del error:", e)
+    st.error(f"Error cargando el Dashboard: {e}")
+    st.info("Verifica que el archivo 'datos_dashboard (1).csv' esté en tu repositorio.")
 
 except Exception as e:
     st.error(f"Error detectado: {e}")
