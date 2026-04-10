@@ -6,7 +6,7 @@ import plotly.express as px
 @st.cache_data
 def load_processed_data():
     # USAMOS LA URL RAW DEL ARCHIVO QUE GENERÓ TU COLAB
-    url = "https://raw.githubusercontent.com/TuUsuario/TuRepositorio/main/resultados_finales_colab.csv"
+    url = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/TransicionEnergetica.ipynb"
     return pd.read_csv(url)
 
 df = load_processed_data()
