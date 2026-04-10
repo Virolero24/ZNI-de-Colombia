@@ -4,7 +4,7 @@ import plotly.express as px
 
 st.set_page_config(page_title="Dashboard ZNI - Ingeniería", layout="wide")
 
-URL = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/main/datos_procesados.csv"
+URL = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/datos_procesados.csv"
 
 @st.cache_data(ttl=30)
 def load_and_clean():
