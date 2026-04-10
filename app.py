@@ -2,28 +2,40 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. Traer los datos ya procesados por el Colab
+# 1. Título y Estilo
+st.set_page_config(page_title="ZNI Dashboard - Ingeniería", layout="wide")
+st.title("⚡ Análisis de Transición Energética Justa")
+
+# 2. Carga de datos desde TU repositorio
 @st.cache_data
-def load_processed_data():
-    # USAMOS LA URL RAW DEL ARCHIVO QUE GENERÓ TU COLAB
-    url = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/TransicionEnergetica.ipynb"
-    return pd.read_csv(url)
+def load_data():
+    # Esta URL apunta directamente a tu archivo en el repo Virolero24
+    url = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/main/datos_procesados.csv"
+    df = pd.read_csv(url)
+    # Corrección de columna por si acaso
+    if 'AÑO SERVICIO' in df.columns:
+        df = df.rename(columns={'AÑO SERVICIO': 'AÑO'})
+    return df
 
-df = load_processed_data()
+try:
+    df = load_data()
+    st.success("✅ Datos sincronizados con el Notebook de Colab")
 
-st.title("⚡ Dashboard de Transición Energética")
+    # 3. Mostrar lo que ya calculaste en Colab
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Clustering (K-Means)")
+        fig1 = px.scatter(df, x='POTENCIA MÁXIMA', y='ENERGÍA ACTIVA', 
+                          color='CATEGORIA_ZNI', hover_name='MUNICIPIO')
+        st.plotly_chart(fig1, use_container_width=True)
 
-# 2. Mostrar los Clusters (Que ya vienen listos del Colab)
-st.subheader("Segmentación de Municipios (K-Means)")
-fig1 = px.scatter(df, x='POTENCIA MÁXIMA', y='ENERGÍA ACTIVA', color='CATEGORIA_ZNI', hover_name='MUNICIPIO')
-st.plotly_chart(fig1)
+    with col2:
+        st.subheader("Proyecciones a 2028")
+        muni = st.multiselect("Seleccionar Municipio:", df['MUNICIPIO'].unique(), default=['SAN ANDRES'])
+        df_plot = df[df['MUNICIPIO'].isin(muni)]
+        fig2 = px.line(df_plot, x='AÑO', y='ENERGÍA ACTIVA', color='MUNICIPIO', markers=True)
+        st.plotly_chart(fig2, use_container_width=True)
 
-# 3. Mostrar la Proyección (Que ya viene lista del Colab)
-st.subheader("Proyección de Demanda a 2028")
-municipios = st.multiselect("Selecciona Municipios:", df['MUNICIPIO'].unique(), default=['SAN ANDRES', 'LETICIA'])
-
-df_plot = df[df['MUNICIPIO'].isin(municipios)]
-
-# Simplemente graficamos lo que ya existe en el CSV
-fig2 = px.line(df_plot, x='AÑO', y='ENERGÍA ACTIVA', color='MUNICIPIO', markers=True)
-st.plotly_chart(fig2)
+except Exception as e:
+    st.error("Esperando a que el Notebook genere el archivo 'datos_procesados.csv' en GitHub.")
