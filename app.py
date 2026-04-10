@@ -8,10 +8,10 @@ st.title("Diagnóstico y Proyección Energética ZNI 2028")
 st.markdown("Análisis interactivo para la Transición Energética Justa en Colombia")
 
 # 1. Carga de datos (usando tu CSV procesado)
-df = pd.read_csv('https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/datos_finales_zni.csv')
+df_proyecto = pd.read_csv('https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/datos_finales_zni.csv')
 
 # 2. Barra Lateral de Filtros
-municipio_search = st.sidebar.multiselect("Seleccionar Municipios:", options=df['MUNICIPIO'].unique(), default=['SAN ANDRES', 'LETICIA'])
+municipio_search = st.sidebar.multiselect("Seleccionar Municipios:", options=df_proyecto['MUNICIPIO'].unique(), default=['SAN ANDRES', 'LETICIA'])
 
 # 3. Métricas de Impacto (El dato del 70.18%)
 col1, col2, col3 = st.columns(3)
@@ -30,6 +30,6 @@ st.plotly_chart(fig_cluster, use_container_width=True)
 
 # 5. Proyección Interactiva
 st.subheader("Tendencia de Crecimiento Individual")
-df_filtrado = df[df['MUNICIPIO'].isin(municipio_search)]
+df_filtrado = df_proyecto[df_proyecto['MUNICIPIO'].isin(municipio_search)]
 fig_line = px.line(df_filtrado, x='AÑO', y='ENERGÍA ACTIVA', color='MUNICIPIO', markers=True)
 st.plotly_chart(fig_line, use_container_width=True)
