@@ -100,7 +100,7 @@ try:
         if not df_filtrado.empty:
             fig_line = px.line(
                 df_filtrado, 
-                x='AÑO', 
+                x='AÑO SERVICIO', 
                 y='ENERGÍA ACTIVA', 
                 color='MUNICIPIO',
                 markers=True,
