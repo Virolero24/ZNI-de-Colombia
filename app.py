@@ -10,7 +10,7 @@ st.title("⚡ Análisis de Transición Energética Justa")
 @st.cache_data
 def load_data():
     # Esta URL apunta directamente a tu archivo en el repo Virolero24
-    url = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/main/datos_procesados.csv"
+    url = "https://raw.githubusercontent.com/Virolero24/ZNI-de-Colombia/refs/heads/main/datos_procesados.csv"
     df = pd.read_csv(url)
     # Corrección de columna por si acaso
     if 'AÑO SERVICIO' in df.columns:
