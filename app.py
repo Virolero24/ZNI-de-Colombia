@@ -25,7 +25,7 @@ def load_and_clean():
         except:
             return None
 
-    df['AÑO'] = df['AÑO'].apply(forzar_numero)
+    df['AÑO SERVICIO'] = df['AÑO SERVICIO'].apply(forzar_numero)
     df['ENERGÍA ACTIVA'] = df['ENERGÍA ACTIVA'].apply(forzar_numero)
     df['POTENCIA MÁXIMA'] = df['POTENCIA MÁXIMA'].apply(forzar_numero)
 
@@ -36,15 +36,15 @@ def load_and_clean():
         df['MUNICIPIO'] = df['MUNICIPIO'].str.replace(k, v)
 
     # 4. Eliminar filas con errores de conversión
-    df = df.dropna(subset=['AÑO', 'ENERGÍA ACTIVA'])
+    df = df.dropna(subset=['AÑO SERVICIO', 'ENERGÍA ACTIVA'])
     
     # 5. Agrupación final
-    df = df.groupby(['MUNICIPIO', 'AÑO'], as_index=False).agg({
+    df = df.groupby(['MUNICIPIO', 'AÑO SERVICIO'], as_index=False).agg({
         'ENERGÍA ACTIVA': 'sum',
         'POTENCIA MÁXIMA': 'max'
     })
     
-    return df.sort_values(['MUNICIPIO', 'AÑO'])
+    return df.sort_values(['MUNICIPIO', 'AÑO SERVICIO'])
 
 try:
     df = load_and_clean()
@@ -55,7 +55,7 @@ try:
     m1, m2, m3 = st.columns(3)
     m1.metric("Municipios", len(df['MUNICIPIO'].unique()))
     m2.metric("Impacto Estratégico", "70.18%")
-    m3.metric("Año Máximo", int(df['AÑO'].max()) if not df.empty else 0)
+    m3.metric("Año Máximo", int(df['AÑO SERVICIO'].max()) if not df.empty else 0)
 
     st.divider()
 
@@ -78,10 +78,10 @@ try:
     
     if sel_line:
         df_l = df[df['MUNICIPIO'].isin(sel_line)]
-        fig2 = px.line(df_l, x='AÑO', y='ENERGÍA ACTIVA', color='MUNICIPIO', markers=True)
+        fig2 = px.line(df_l, x='AÑO SERVICIO', y='ENERGÍA ACTIVA', color='MUNICIPIO', markers=True)
         
         # Sombreado de predicción
-        if df['AÑO'].max() >= 2025:
+        if df['AÑO SERVICIO'].max() >= 2025:
             fig2.add_vrect(x0=2024.5, x1=2028.5, fillcolor="rgba(46, 204, 113, 0.2)", 
                            layer="below", line_width=0, annotation_text="PREDICCIÓN IA")
         
